@@ -1,0 +1,17 @@
+# nunca subir secretos ni datos de clientes
+.env*
+Shopify/
+*token*.json
+*_token.json
+dropi_*
+meta_*
+*.xlsx
+*.csv
+producto.*
+.watcher.lock
+confirmaciones_contactados.json
+confirmaciones_notas.json
+confirmaciones_etiquetas.json
+confirmaciones_pruebas.json
+__pycache__/
+*.pyc
