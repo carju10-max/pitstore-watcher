@@ -1,0 +1,21 @@
+name: Alerta vencimiento planes Shopify
+
+on:
+  schedule:
+    - cron: '0 14 * * *'      # 14:00 UTC = 09:00 Perú, una vez al día
+  workflow_dispatch:           # boton para probarlo a mano
+
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Revisar vencimientos y avisar por Telegram
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python alerta_vencimiento.py
