@@ -1,0 +1,24 @@
+name: Recordatorio de reentregas
+
+# Avisa la VÍSPERA de cada reentrega pactada, con el mensaje listo para copiar.
+# 14:00 UTC = 09:00 en Perú: da tiempo de sobra a escribir en la ventana buena
+# de España (17-18 h de allí = 10-11 de la mañana en Perú).
+on:
+  schedule:
+    - cron: '0 14 * * *'
+  workflow_dispatch:            # botón para probarlo a mano
+
+jobs:
+  avisar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Avisar reentregas de mañana
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python recordatorio_entregas.py
