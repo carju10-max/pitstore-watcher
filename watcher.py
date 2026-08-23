@@ -6,7 +6,7 @@ Cero costo: no usa plantillas de Meta ni saldo de Pancake. El envio final lo hac
 Carlos con un tap (wa.me abre su WhatsApp con el texto ya escrito).
 
 Uso:
-    python watcher.py            # loop, revisa cada 3 min
+    python watcher.py            # loop, revisa cada minuto
     python watcher.py --once     # una sola pasada (ideal para Programador de tareas)
     python watcher.py --test     # marca todo lo actual como visto, sin avisar
 """
@@ -20,7 +20,7 @@ from notificador import avisar, enviar_foto
 
 BASE = Path(__file__).parent
 SEEN = BASE / ".watcher_seen.json"
-INTERVALO = 30  # segundos entre revisiones en modo loop
+INTERVALO = 60  # segundos entre revisiones en modo loop
 
 
 def _foto_producto():
@@ -43,6 +43,51 @@ def _seen() -> set:
 
 def _guardar(vistos: set) -> None:
     SEEN.write_text(json.dumps(sorted(vistos)), encoding="utf-8")
+
+
+def _git(*args) -> bool:
+    """Un comando de git en esta carpeta. False si falla, sin reventar nada."""
+    import subprocess
+    try:
+        r = subprocess.run(("git",) + args, cwd=BASE, capture_output=True,
+                           text=True, timeout=45)
+        return r.returncode == 0
+    except Exception as e:
+        print(f"  git {' '.join(args)}: {e}")
+        return False
+
+
+def _hay_repo() -> bool:
+    return (BASE / ".git").exists()
+
+
+def bajar_estado() -> None:
+    """Trae los pedidos que ya avisó el watcher de la nube.
+
+    Los dos vigilantes miran la MISMA tienda. Si el local no se enterara de lo
+    que ya avisó el de GitHub, cada pedido llegaría por Telegram dos veces.
+    El archivo .watcher_seen.json es el que los pone de acuerdo.
+    """
+    if not _hay_repo():
+        return
+    _git("pull", "--rebase", "--autostash", "-q")
+
+
+def subir_estado() -> None:
+    """Publica lo que acaba de avisar este watcher, para que la nube no repita.
+
+    Solo se llama cuando hubo pedidos nuevos (unos pocos al día), así que no
+    llena el repo de commits.
+    """
+    if not _hay_repo():
+        return
+    if not _git("diff", "--quiet", "--", ".watcher_seen.json"):
+        _git("add", ".watcher_seen.json")
+        _git("commit", "-m", "estado watcher local [skip ci]")
+        if not _git("push", "-q"):
+            # si el push choca, rebase y un segundo intento; si no, ya ira luego
+            _git("pull", "--rebase", "--autostash", "-q")
+            _git("push", "-q")
 
 
 def _alerta(p: dict) -> str:
@@ -141,7 +186,14 @@ def main():
         print("Marcado todo lo actual como visto. Los proximos pedidos si te avisan.")
         return
     if "--once" in args:
+        # Sincronizar ANTES es obligatorio: con un .watcher_seen.json viejo, la
+        # pasada da por nuevos pedidos que el watcher de la nube ya avisó y los
+        # reenvía todos de golpe. Pasó una vez; de ahí esta linea.
+        if "--sin-sync" not in args:
+            bajar_estado()
         n = revisar()
+        if n and "--sin-sync" not in args:
+            subir_estado()
         print(f"revision unica: {n} nuevos")
         return
     # candado: si ya hay otro bucle vivo (heartbeat fresco), no arranco un segundo
@@ -149,13 +201,19 @@ def main():
     if lock.exists() and (time.time() - lock.stat().st_mtime) < INTERVALO * 3:
         print("Ya hay un watcher corriendo (candado fresco). Salgo.")
         return
-    print(f"Vigilando Shopify cada {INTERVALO}s. Ctrl+C para parar.")
+    sincronizar = "--sin-sync" not in args
+    print(f"Vigilando Shopify cada {INTERVALO}s"
+          f"{' (estado compartido con la nube)' if sincronizar else ''}. Ctrl+C para parar.")
     while True:
         try:
             lock.write_text(str(int(time.time())), encoding="utf-8")  # heartbeat
+            if sincronizar:
+                bajar_estado()
             n = revisar()
             if n:
                 print(f"  {n} pedidos nuevos avisados")
+                if sincronizar:
+                    subir_estado()
         except Exception as e:
             print("error en revision:", e)
         time.sleep(INTERVALO)

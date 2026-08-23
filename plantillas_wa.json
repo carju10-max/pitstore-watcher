@@ -1,0 +1,149 @@
+[
+  {
+    "k": "confirmar_1",
+    "txt": "Confirmar pedido",
+    "grupo": "Confirmación",
+    "cuando": "Nada más entrar el pedido. Es el mensaje más importante: manda en los primeros 30 minutos.",
+    "estados": [
+      "por_confirmar"
+    ],
+    "texto": "¡Hola {nombre}! ¿Qué tal?\n\nTe escribo de {tienda}. Hemos recibido tu pedido de {producto} por {precio}, con pago contrareembolso.\n\nEnviarmos el producto a: \n· Dirección: {direccion}\n· Población: {ciudad}\n· Código postal: {cp}\n· Teléfono: {telefono}\n\nSuele llegar en 2-7 días laborables según la zona, la empresa de transporte podría contactarte antes para concretar el horario contigo; si te viene mejor otro momento, se lo dices sin problema 😊\n\nNos confirmas que todo está bien? , con un OK de parte  es suficiente"
+  },
+  {
+    "k": "confirmar_2",
+    "txt": "2º intento (breve)",
+    "grupo": "Confirmación",
+    "cuando": "Si no respondió al primero. Mándalo 2-4 horas después.",
+    "estados": [
+      "por_confirmar"
+    ],
+    "texto": "¡Hola {nombre}! ¿Qué tal?\n\nTe escribí antes por tu pedido. Solo me falta que me confirmes la dirección y el código postal, y ya te lo preparo.\n\nCon un *OK* me vale."
+  },
+  {
+    "k": "confirmar_3",
+    "txt": "Último intento",
+    "grupo": "Confirmación",
+    "cuando": "Al día siguiente sin respuesta. Da una salida fácil: un 'no' hoy sale gratis, un rebote cuesta 7 €.",
+    "estados": [
+      "por_confirmar"
+    ],
+    "texto": "¡Hola {nombre}! ¿Qué tal?\n\nSigo sin noticias tuyas sobre el pedido de {producto}. Lo tengo reservado a tu nombre, pero necesito tu OK para mandarlo.\n\nSi me dices *OK* hoy, sale mañana. Y si ya no lo quieres, dímelo sin problema y lo libero — no pasa nada."
+  },
+  {
+    "k": "confirmado",
+    "txt": "Confirmado · plazo",
+    "grupo": "Envío",
+    "cuando": "Justo después de que confirme. Da un rango amplio: mejor que llegue antes de lo dicho.",
+    "estados": [
+      "preparacion"
+    ],
+    "texto": "¡Genial, {nombre}! Muchas gracias por confirmar 🙌\n\nYa te lo preparamos. Suele llegar en 2-7 días laborables según la zona, y la empresa de transporte te llamará antes para concretar el horario contigo; si te viene mejor otro momento, se lo dices sin problema 😊\n\nCualquier cosa me dices, ¿vale?"
+  },
+  {
+    "k": "en_camino",
+    "txt": "Ya salió",
+    "grupo": "Envío",
+    "cuando": "Cuando el paquete sale del almacén. Reduce los '¿dónde está mi pedido?'.",
+    "estados": [
+      "en_camino",
+      "preparacion"
+    ],
+    "texto": "¡Hola {nombre}! 👋\n\nTu pedido ya está en camino 🚚\n\nLa empresa de transporte te contactará para coordinar la entrega. Cualquier cosa me dices por aquí."
+  },
+  {
+    "k": "en_reparto",
+    "txt": "En reparto hoy",
+    "grupo": "Envío",
+    "cuando": "El día que sale a reparto. Que tenga el importe a mano y esté pendiente del móvil.",
+    "estados": [
+      "en_camino"
+    ],
+    "texto": "¡Hola {nombre}! 👋\n\nMe confirman que tu pedido sale a reparto hoy. Mantente pendiente del teléfono 📞 por si te llaman antes de subir.\n\nRecuerda tener a mano el importe, que el pago es al recibir."
+  },
+  {
+    "k": "nov_no_contesta",
+    "txt": "No contestó al repartidor",
+    "grupo": "Novedades",
+    "cuando": "La transportadora intentó entregar y no logró contactar.",
+    "estados": [
+      "novedad",
+      "en_camino"
+    ],
+    "texto": "¡Hola {nombre}! 👋\n\nIntentaron entregarte el pedido y no consiguieron localizarte 📞\n\n¿Me dices qué día te viene bien para que lo intenten de nuevo? Lo coordino sin problema."
+  },
+  {
+    "k": "nov_direccion",
+    "txt": "Dirección incompleta",
+    "grupo": "Novedades",
+    "cuando": "No encuentran el domicilio. Pide una referencia concreta, no solo 'la dirección bien'.",
+    "estados": [
+      "novedad",
+      "en_camino"
+    ],
+    "texto": "¡Hola {nombre}! 👋\n\nMe dicen que no consiguen ubicar la dirección 🗺️ ¿Me ayudas con esto?\n· Dirección completa (con número y piso)\n· Alguna referencia cercana: un bar, una tienda, algo que se vea\n· El código postal\n· Y confírmame el teléfono\n\nCon eso lo reprograman enseguida."
+  },
+  {
+    "k": "nov_zona",
+    "txt": "Zona de difícil acceso",
+    "grupo": "Novedades",
+    "cuando": "Zona rural o de acceso limitado.",
+    "estados": [
+      "novedad",
+      "en_camino"
+    ],
+    "texto": "¡Hola {nombre}! 👋\n\nMe comentan que tu zona tiene el acceso complicado. Para poder entregarte, ¿me pasas una referencia cercana? Un comercio, una plaza, algo conocido.\n\nSi prefieres, también podemos dejarlo en un punto de recogida cercano. Tú me dices."
+  },
+  {
+    "k": "cancela",
+    "txt": "Quiere cancelar",
+    "grupo": "Incidencias",
+    "cuando": "Pide cancelar antes del envío. Entiende el motivo; si insiste, cancela sin fricción.",
+    "estados": [
+      "por_confirmar",
+      "preparacion",
+      "en_camino"
+    ],
+    "texto": "Hola {nombre}, sin problema, lo entiendo.\n\n¿Me dices el motivo? A veces tiene solución:\n· Si es por el plazo, puedo darle prioridad.\n· Si es por el producto, te cuento bien cómo funciona.\n\nY si prefieres cancelar igual, lo hago ahora mismo. Tú decides 🙌"
+  },
+  {
+    "k": "rechazo",
+    "txt": "Rechazó la entrega",
+    "grupo": "Incidencias",
+    "cuando": "Devolvió el paquete en la puerta. Entender el motivo evita que se repita.",
+    "estados": [
+      "novedad",
+      "devolucion"
+    ],
+    "texto": "Hola {nombre}, me dicen que hoy no pudiste recibir el pedido.\n\n¿Va todo bien? ¿Hubo algún problema?\n\nSi quieres lo reprogramamos para otro día que te venga mejor. Dime y lo gestiono."
+  },
+  {
+    "k": "gracias",
+    "txt": "Dar las gracias",
+    "grupo": "Post-venta",
+    "cuando": "Nada más entregarse. Cierra el ciclo bien y abre la puerta a la reseña.",
+    "estados": [
+      "entregado"
+    ],
+    "texto": "¡Hola {nombre}! 🎉\n\nMe confirman que ya has recibido tu {producto}. ¡Espero que te guste mucho!\n\nSi tienes cualquier duda sobre cómo usarlo, estoy por aquí.\n\nGracias por confiar 💙"
+  },
+  {
+    "k": "resena",
+    "txt": "Pedir opinión",
+    "grupo": "Post-venta",
+    "cuando": "2-3 días después de la entrega. Una foto real de cliente vale oro para los anuncios.",
+    "estados": [
+      "entregado"
+    ],
+    "texto": "¡Hola {nombre}! 👋\n\n¿Qué tal te ha ido con las bolsas?\n\nMe encantaría saber tu opinión. Con dos líneas por aquí me vale de sobra, y si te animas a mandarme una foto, mejor todavía 📸\n\nCon tu permiso la compartiría en la web, para que otras personas vean cómo queda de verdad.\n\nY si algo no ha salido como esperabas, dímelo también y lo arreglamos 💙"
+  },
+  {
+    "k": "recompra",
+    "txt": "Recompra",
+    "grupo": "Post-venta",
+    "cuando": "2-4 semanas después. Venderle a quien ya te compró sale mucho más barato que captar nuevo.",
+    "estados": [
+      "entregado"
+    ],
+    "texto": "¡Hola {nombre}! 👋\n\nEspero que sigas contento con tu {producto}.\n\nTe escribo porque tengo algo nuevo que creo que te puede encajar. Como ya eres cliente, te lo dejo con un precio especial.\n\n¿Te cuento?"
+  }
+]

@@ -360,6 +360,7 @@ def leer_pedidos(limite: int = 250, tels_prueba: str = "",
             "referencia": _attr(o, "Referencia de domicilio o trabajo") or env_dir.get("address2") or "",
             "ciudad": _attr(o, "Ciudad") or env_dir.get("city") or "",
             "provincia": _attr(o, "Provincia") or env_dir.get("province") or "",
+            "cp": _attr(o, "Código postal") or _attr(o, "Codigo postal") or env_dir.get("zip") or "",
             "cancelado": bool(o.get("cancelled_at")),
             "en_dropi": "order sent to dropi" in etiquetas.lower(),
             "error_dropi": "dropi sync error" in etiquetas.lower(),
@@ -371,6 +372,51 @@ def leer_pedidos(limite: int = 250, tels_prueba: str = "",
     return pedidos
 
 
+PLANTILLAS = BASE / "plantillas_wa.json"
+# Si la laptop tiene el CRM al lado, sus plantillas mandan: son las que Carlos
+# acaba de editar. La copia del repo es el respaldo para el watcher de la nube.
+PLANTILLAS_CRM = Path(r"C:\Users\HP\Documents\CARLOS\ClaudeCode\Productos Ganadores DropShipping") / "plantillas_wa.json"
+
+
+def _plantillas() -> list:
+    for f in (PLANTILLAS_CRM, PLANTILLAS):
+        if f.exists():
+            try:
+                return json.loads(f.read_text(encoding="utf-8"))
+            except Exception as e:
+                print(f"  aviso: {f.name} ilegible ({e})")
+    return []
+
+
+def _datos_plantilla(p: dict) -> dict:
+    """Las {llaves} que rellenan las plantillas, igual que en el CRM."""
+    nombre = (p.get("cliente") or "").strip().split()
+    es = (p.get("pais") or "EC").upper() == "ES"
+    total = str(p.get("total", ""))
+    # En España el importe se escribe con coma: 34,99 €
+    precio = f"{total.replace('.', ',')} €" if es else f"${total}"
+    direccion = ", ".join(x for x in [(p.get("direccion") or "").strip(),
+                                      (p.get("referencia") or "").strip()]
+                          if x and x not in ("-", "—"))
+    ciudad = ", ".join(x for x in [p.get("ciudad", ""), p.get("provincia", "")] if x)
+    return {"nombre": nombre[0] if nombre else "",
+            "producto": p.get("producto", ""), "precio": precio,
+            "direccion": direccion, "ciudad": ciudad, "cp": p.get("cp", ""),
+            "telefono": p.get("telefono", ""), "pedido": p.get("pedido", ""),
+            "tienda": "PitStore"}
+
+
+def mensaje_plantilla(p: dict, clave: str = "confirmar_1") -> str:
+    """El mensaje tal cual lo tiene Carlos en el CRM. "" si no hay plantilla."""
+    for pl in _plantillas():
+        if pl.get("k") == clave and pl.get("texto"):
+            texto = pl["texto"]
+            for k, v in _datos_plantilla(p).items():
+                texto = texto.replace("{" + k + "}", str(v or ""))
+            return texto.strip()
+    return ""
+
+
 def mensaje_confirmacion(p: dict, con_emojis: bool = True) -> str:
     """El texto que ve el cliente. Incluye la dirección a propósito: las entregas
     fallan por direcciones incompletas, así que se confirma pedido Y dirección.
@@ -380,6 +426,13 @@ def mensaje_confirmacion(p: dict, con_emojis: bool = True) -> str:
     Las tildes (2 bytes) sí sobreviven. En la plantilla de Meta los emojis van bien
     porque ese camino es HTTPS puro y no pasa por Windows.
     """
+    # España va con las plantillas del CRM. El texto de abajo es el de Ecuador
+    # (Martha, la transportadora que llama al día siguiente) y allí no aplica.
+    if (p.get("pais") or "EC").upper() != "EC":
+        desde_crm = mensaje_plantilla(p)
+        if desde_crm:
+            return desde_crm
+
     primer = (p["cliente"] or "").strip().split()[0] if (p["cliente"] or "").strip() else "hola"
     # telefono para pegar en WhatsApp: +593 + numero local con 0  ->  +5930994512808
     # (rareza ecuatoriana; fuera de Ecuador se usa el internacional tal cual)
