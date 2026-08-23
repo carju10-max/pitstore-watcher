@@ -25,6 +25,9 @@ jobs:
         env:
           SHOPIFY_STORE: ${{ secrets.SHOPIFY_STORE }}
           SHOPIFY_TOKEN: ${{ secrets.SHOPIFY_TOKEN }}
+          # 2ª tienda (España). Si estos secrets no existen, se salta sin fallar.
+          SHOPIFY_STORE_ES: ${{ secrets.SHOPIFY_STORE_ES }}
+          SHOPIFY_TOKEN_ES: ${{ secrets.SHOPIFY_TOKEN_ES }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           TEST_PHONES: ${{ secrets.TEST_PHONES }}

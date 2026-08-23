@@ -264,11 +264,49 @@ def toggle_prueba(pedido: str) -> list:
     return d
 
 
-def leer_pedidos(limite: int = 250, tels_prueba: str = "") -> list:
-    """Trae los pedidos de Shopify ya normalizados y listos para confirmar."""
+# ------------------------------------------------------------------ #
+#  TIENDAS — el watcher vigila varias a la vez
+# ------------------------------------------------------------------ #
+# Cada tienda se declara con un sufijo de variable de entorno. La primera (sin
+# sufijo) es la de siempre, para no romper nada de lo que ya estaba configurado.
+TIENDAS = [
+    # (sufijo, clave interna, etiqueta que se ve en Telegram, país del teléfono)
+    ("",    "ec", "🇪🇨 Ecuador", "EC"),
+    ("_ES", "es", "🇪🇸 España",  "ES"),
+]
+
+
+def tiendas_configuradas() -> list:
+    """Las tiendas que tienen credenciales puestas (env o Shopify/.env).
+
+    Devuelve [] si no hay ninguna. Una tienda sin token simplemente se salta:
+    así se puede añadir España sin tocar nada cuando llegue su token.
+    """
     env = _leer_env(ENV_SHOPIFY)
-    tienda = os.environ.get("SHOPIFY_STORE") or env.get("SHOPIFY_STORE", "")
-    token = os.environ.get("SHOPIFY_TOKEN") or env.get("SHOPIFY_TOKEN", "")
+    fuera = []
+    for sufijo, clave, etiqueta, pais in TIENDAS:
+        tienda = (os.environ.get("SHOPIFY_STORE" + sufijo)
+                  or env.get("SHOPIFY_STORE" + sufijo, ""))
+        token = (os.environ.get("SHOPIFY_TOKEN" + sufijo)
+                 or env.get("SHOPIFY_TOKEN" + sufijo, ""))
+        if tienda and token:
+            fuera.append({"clave": clave, "etiqueta": etiqueta, "pais": pais,
+                          "tienda": tienda, "token": token})
+    return fuera
+
+
+def leer_pedidos(limite: int = 250, tels_prueba: str = "",
+                 tienda: str = "", token: str = "", pais: str = "EC") -> list:
+    """Trae los pedidos de Shopify ya normalizados y listos para confirmar.
+
+    Sin argumentos lee la tienda por defecto (SHOPIFY_STORE/SHOPIFY_TOKEN), como
+    siempre. Pasándole tienda/token/país lee cualquier otra — así el watcher
+    puede recorrer varias tiendas en la misma pasada.
+    """
+    if not (tienda and token):
+        env = _leer_env(ENV_SHOPIFY)
+        tienda = os.environ.get("SHOPIFY_STORE") or env.get("SHOPIFY_STORE", "")
+        token = os.environ.get("SHOPIFY_TOKEN") or env.get("SHOPIFY_TOKEN", "")
     if not (tienda and token):
         raise RuntimeError("Faltan SHOPIFY_STORE / SHOPIFY_TOKEN en Shopify/.env")
 
@@ -287,10 +325,13 @@ def leer_pedidos(limite: int = 250, tels_prueba: str = "") -> list:
         env_dir = o.get("shipping_address") or {}
         # SIEMPRE order.phone: shipping_address.phone viene roto (ver normalizar_tel)
         tel = normalizar_tel(o.get("phone") or _attr(o, "Número de Whatsapp")
-                             or env_dir.get("phone"))
+                             or env_dir.get("phone"), pais=pais)
         # formato local ecuatoriano CON el 0 inicial (0982875678): es el que Carlos
         # copia y pega en WhatsApp. El wa.me sigue usando 'tel' internacional sin 0.
-        if tel:
+        # Solo aplica a Ecuador; en España el número ya va bien en internacional.
+        if tel and pais.upper() != "EC":
+            tel_local = ""
+        elif tel:
             _dig = re.sub(r"\D", "", tel)               # 593982875678
             _nac = _dig[3:] if _dig.startswith("593") else _dig  # 982875678
             tel_local = _nac if _nac.startswith("0") else "0" + _nac  # 0982875678
@@ -324,6 +365,8 @@ def leer_pedidos(limite: int = 250, tels_prueba: str = "") -> list:
             "error_dropi": "dropi sync error" in etiquetas.lower(),
             "es_prueba": es_prueba,
             "utm_campaign": _attr(o, "UTM campaign"),
+            "pais": pais.upper(),
+            "tienda": tienda,
         })
     return pedidos
 
@@ -339,7 +382,11 @@ def mensaje_confirmacion(p: dict, con_emojis: bool = True) -> str:
     """
     primer = (p["cliente"] or "").strip().split()[0] if (p["cliente"] or "").strip() else "hola"
     # telefono para pegar en WhatsApp: +593 + numero local con 0  ->  +5930994512808
-    tel_pega = ("+593" + p["tel_local"]) if p.get("tel_local") else p.get("telefono", "")
+    # (rareza ecuatoriana; fuera de Ecuador se usa el internacional tal cual)
+    if p.get("pais", "EC").upper() == "EC" and p.get("tel_local"):
+        tel_pega = "+593" + p["tel_local"]
+    else:
+        tel_pega = p.get("telefono", "")
     direccion = p["direccion"]
     if p["referencia"] and p["referencia"] not in ("-", ""):
         direccion += f". Referencia: {p['referencia']}"
