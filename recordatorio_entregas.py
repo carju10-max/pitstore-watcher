@@ -1,33 +1,33 @@
 # -*- coding: utf-8 -*-
-"""Recordatorio de reentregas acordadas con el cliente.
+"""Avisos de las reentregas pactadas tras una incidencia.
 
-Cuando una incidencia se gestiona y se pacta una nueva fecha de entrega, el
-cliente tiene que ESTAR EN CASA ese día. Si no, se gasta el 2º intento y el
-tercero ya cuesta envío extra (y a los 10 días el paquete se devuelve solo).
+Cuando una entrega falla, Dropi da una fecha para el siguiente intento. Manda
+dos avisos distintos por Telegram:
 
-Este script corre 1 vez al día y avisa por Telegram **la víspera**, con el
-mensaje ya escrito para copiar y pegar.
+  · LA VÍSPERA — con el mensaje listo para que el cliente esté en casa. La
+    ventana buena para escribir a España es 17-18 h de allí, o sea 10-11 de la
+    mañana en Perú; por eso se avisa el día antes y no el mismo día.
 
-⏰ Por qué la víspera y no el mismo día: la ventana buena para escribir a España
-es 17:00-18:00 hora de allí, que son las 10-11 de la mañana en Perú. El mismo
-día por la mañana en España serían las 2 de la madrugada para Carlos.
+  · CUANDO LA FECHA YA PASÓ y el pedido sigue sin entregarse. Esa fecha es una
+    PROMESA de Dropi, no un hecho: puede que ese día no vayan, y ese fallo no
+    avisa solo — se queda callado durante días.
 
-Para añadir una reentrega: mete una entrada en ENTREGAS. Cuando pase la fecha,
-deja de avisar solo.
+Las fechas salen de `reentregas.json`, que se edita desde la ficha del pedido
+en el CRM. Antes estaban escritas a mano aquí dentro.
 """
+import json
 from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 
 import notificador
 
-# Reentregas pactadas. fecha = el día que la transportadora va a ir.
-ENTREGAS = [
-    {"pedido": "#1018", "nombre": "Isabel", "cliente": "Isabel Garrido Arenas",
-     "tel": "+34627625079", "ciudad": "Castilleja del Campo (Sevilla)",
-     "fecha": date(2026, 8, 25), "importe": "34,99 €", "intento": 2},
-    {"pedido": "#1014", "nombre": "Maria Rosa", "cliente": "Maria Rosa López Fernandez",
-     "tel": "+34679466943", "ciudad": "Oleiros (A Coruña)",
-     "fecha": date(2026, 8, 25), "importe": "27,99 €", "intento": 2},
-]
+BASE = Path(__file__).parent
+# El CRM manda: es donde Carlos las apunta. La copia del repo es el respaldo
+# para cuando esto corre en GitHub Actions, sin acceso a la laptop.
+PROYECTO = Path(r"C:\Users\HP\Documents\CARLOS\ClaudeCode\Productos Ganadores DropShipping")
+FUENTES = [PROYECTO / "reentregas.json", BASE / "reentregas.json"]
+# Para no repetir el mismo aviso en cada pasada del vigilante (corre cada minuto)
+YA_AVISADO = BASE / ".reentregas_avisadas.json"
 
 
 def _hoy_lima() -> date:
@@ -35,42 +35,126 @@ def _hoy_lima() -> date:
     return datetime.now(timezone(timedelta(hours=-5))).date()
 
 
-def _mensaje_cliente(e: dict) -> str:
-    """El texto para el cliente. Se manda la víspera, así que dice 'mañana'."""
+def _cargar() -> dict:
+    """Las reentregas conocidas: las apuntadas a mano MÁS las que el CRM leyó
+    del historial de Dropi. Lo apuntado a mano manda."""
+    fuera = {}
+    # 1) lo que el CRM detectó solo en el historial de Dropi
+    for f in (PROYECTO / "reentregas_auto.json", BASE / "reentregas_auto.json"):
+        if f.exists():
+            try:
+                fuera.update(json.loads(f.read_text(encoding="utf-8")))
+                break
+            except Exception as e:
+                print(f"[reentregas] {f.name} ilegible: {e}")
+    # 2) lo apuntado a mano, que pisa lo anterior
+    for f in FUENTES:
+        if f.exists():
+            try:
+                fuera.update(json.loads(f.read_text(encoding="utf-8")))
+                break
+            except Exception as e:
+                print(f"[reentregas] {f.name} ilegible: {e}")
+    return fuera
+
+
+def _avisadas() -> dict:
+    if YA_AVISADO.exists():
+        try:
+            return json.loads(YA_AVISADO.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {}
+
+
+def _marcar(clave: str, tipo: str) -> None:
+    d = _avisadas()
+    d[f"{clave}|{tipo}|{_hoy_lima()}"] = True
+    YA_AVISADO.write_text(json.dumps(d), encoding="utf-8")
+
+
+def _entregado(clave: str) -> bool:
+    """¿Ya se entregó? Si sí, no hay nada que avisar aunque la fecha pasara."""
+    try:
+        import confirmaciones as conf
+        for n in conf.cargar_notas().get(clave, []):
+            if n.get("resultado") in ("recibio", "gracias"):
+                return True
+    except Exception:
+        pass
+    return False
+
+
+def _mensaje_cliente(nombre: str, fecha: date) -> str:
+    """El texto para el cliente. Se manda la víspera, así que dice 'mañana'.
+
+    Ojo con el tono: la fecha la da Dropi y puede fallar, así que no se promete
+    la entrega — se le pide que esté disponible.
+    """
     dias = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
-    dia = dias[e["fecha"].weekday()]
     return (
-        f"¡Hola {e['nombre']}! Te escribo de PitStore.\n\n"
-        f"Mañana {dia} te llevan el pedido de las bolsas. Como la otra vez no hubo "
-        f"suerte, te aviso con tiempo para que estés pendiente.\n\n"
-        f"Si por lo que sea no vas a estar, dímelo hoy y lo movemos a otro día, sin "
-        f"problema. Es mejor eso que se vuelva a perder el viaje. ¡Gracias!"
+        f"¡Hola {nombre}! Te escribo de PitStore.\n\n"
+        f"Mañana {dias[fecha.weekday()]} deberían llevarte el pedido de las bolsas. "
+        f"Como la otra vez no hubo suerte, te aviso con tiempo.\n\n"
+        f"Estate atento por si el repartidor intenta contactarte, y si no vas a "
+        f"estar, déjalo dicho con alguien que pueda recibirlo y tenga el importe "
+        f"preparado.\n\n"
+        f"Si mañana no te viene bien, dímelo hoy y lo movemos. ¡Gracias!"
     )
 
 
 def main() -> int:
     hoy = _hoy_lima()
     manana = hoy + timedelta(days=1)
-    pendientes = [e for e in ENTREGAS if e["fecha"] == manana]
-    if not pendientes:
-        print(f"[recordatorio] {hoy}: ninguna reentrega para mañana ({manana}).")
+    datos = _cargar()
+    if not datos:
+        print(f"[reentregas] {hoy}: no hay ninguna apuntada.")
         return 0
 
-    cab = (f"📦 <b>MAÑANA hay {len(pendientes)} reentrega"
-           f"{'s' if len(pendientes) > 1 else ''}</b> ({manana:%d-%m})\n"
-           f"Escríbeles <b>hoy entre las 10 y las 11 de la mañana</b> "
-           f"(17-18 h en España).\n"
-           f"⚠️ Van por el intento 2 de 2: si falla, el tercero cobra envío extra.")
-    notificador.avisar(cab)
+    ya = _avisadas()
+    vispera, vencidas = [], []
+    for clave, r in datos.items():
+        try:
+            f = date.fromisoformat(str(r.get("fecha", ""))[:10])
+        except ValueError:
+            continue
+        if f == manana and f"{clave}|vispera|{hoy}" not in ya:
+            vispera.append((clave, r, f))
+        elif f < hoy and not _entregado(clave):
+            # solo una vez al día, no en cada pasada del vigilante
+            if f"{clave}|vencida|{hoy}" not in ya:
+                vencidas.append((clave, r, f))
 
-    for e in pendientes:
-        detalle = (f"👤 <b>{e['cliente']}</b>  ·  {e['pedido']}\n"
-                   f"📍 {e['ciudad']}  ·  {e['importe']}\n"
-                   f"📱 <code>{e['tel']}</code>\n\n"
-                   f"Mensaje listo para copiar:\n"
-                   f"<code>{_mensaje_cliente(e)}</code>")
-        notificador.avisar(detalle)
-        print(f"[recordatorio] avisado {e['pedido']} ({e['cliente']})")
+    for clave, r, f in vispera:
+        # Solo el nombre de pila: la nota trae "Isabel Garrido Arenas — Ciudad"
+        # y saludar con el nombre completo suena a carta del banco.
+        nombre = ((r.get("nota") or clave).split("—")[0].strip().split() or [clave])[0]
+        pedido = clave.split(":")[-1]
+        # Si la fecha vino del historial de Dropi no sabemos el número de intento,
+        # pero una reprogramación es como mínimo el segundo.
+        intento = r.get("intento") or 2
+        notificador.avisar(
+            f"📦 <b>MAÑANA deberían entregar {pedido}</b> ({f:%d-%m})\n"
+            f"{r.get('nota', '')}\n"
+            f"⚠️ Va por el intento {intento}: si falla, el siguiente "
+            f"cobra envío extra.\n\n"
+            f"Escríbele <b>hoy entre las 10 y las 11 de la mañana</b> (17-18 h en España):\n"
+            f"<code>{_mensaje_cliente(nombre, f)}</code>")
+        _marcar(clave, "vispera")
+        print(f"[reentregas] avisado {pedido} (víspera)")
+
+    for clave, r, f in vencidas:
+        pedido = clave.split(":")[-1]
+        notificador.avisar(
+            f"⚠️ <b>{pedido}: la reentrega era el {f:%d-%m} y sigue sin entregarse</b>\n"
+            f"{r.get('nota', '')}\n"
+            f"Van {(hoy - f).days} día(s) de retraso. Pregúntale a Dropi qué pasó — "
+            f"esa fecha era una promesa, no un hecho.")
+        _marcar(clave, "vencida")
+        print(f"[reentregas] avisado {pedido} (vencida)")
+
+    if not vispera and not vencidas:
+        print(f"[reentregas] {hoy}: nada que avisar.")
     return 0
 
 

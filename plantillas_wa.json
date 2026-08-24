@@ -1,13 +1,13 @@
 [
   {
     "k": "confirmar_1",
-    "txt": "Confirmar pedido",
+    "txt": "1 · Pedido recibido",
     "grupo": "Confirmación",
-    "cuando": "Nada más entrar el pedido. Es el mensaje más importante: manda en los primeros 30 minutos.",
+    "cuando": "Nada más revisar la dirección y confirmarlo en Dropi. No pide permiso: avisa. Es el mensaje más importante.",
     "estados": [
       "por_confirmar"
     ],
-    "texto": "¡Hola {nombre}! ¿Qué tal?\n\nTe escribo de {tienda}. Hemos recibido tu pedido de {producto} por {precio}, con pago contrareembolso.\n\nEnviarmos el producto a: \n· Dirección: {direccion}\n· Población: {ciudad}\n· Código postal: {cp}\n· Teléfono: {telefono}\n\nSuele llegar en 2-7 días laborables según la zona, la empresa de transporte podría contactarte antes para concretar el horario contigo; si te viene mejor otro momento, se lo dices sin problema 😊\n\nNos confirmas que todo está bien? , con un OK de parte  es suficiente"
+    "texto": "¡Hola {nombre}! Te escribo de PitStore 👋\n\nGracias por tu pedido, ya lo estamos preparando.\n\n*{producto}* — *{precio}*, pago al recibir.\n\nEnvío a:\n· {direccion}\n· {ciudad} ({cp})\n· {telefono}\n\nLlega en *2-7 días laborables* según la zona.\n\nPara que no falle la entrega:\n\n· Esos días estate atento: si el repartidor no encuentra a nadie, es probable que intente contactarte.\n· Que haya alguien en casa que pueda recibirlo.\n· Ten el importe preparado en efectivo.\n\nSi algo de la dirección no está bien, dímelo y lo corrijo.\n\n¿Me das un *OK* para saber que te llegó bien este mensaje?"
   },
   {
     "k": "confirmar_2",
@@ -30,14 +30,47 @@
     "texto": "¡Hola {nombre}! ¿Qué tal?\n\nSigo sin noticias tuyas sobre el pedido de {producto}. Lo tengo reservado a tu nombre, pero necesito tu OK para mandarlo.\n\nSi me dices *OK* hoy, sale mañana. Y si ya no lo quieres, dímelo sin problema y lo libero — no pasa nada."
   },
   {
+    "k": "datos_faltan",
+    "txt": "Faltan datos / dirección",
+    "grupo": "Confirmación",
+    "estados": [
+      "por_confirmar",
+      "preparacion"
+    ],
+    "cuando": "Cuando la ficha marca la alarma de dirección o falta el apellido. Mándalo ANTES de despachar: después ya no se puede cambiar.",
+    "texto": "Una cosa antes de despacharlo, {nombre}:\n\nPara que el reparto no tenga problemas en localizarte en {direccion}, necesito confirmar dos datos:\n\n· *Apellido*: ¿me lo pasas para completar la etiqueta?\n· *Código postal*: el que nos diste es *{cp}* y parece que tiene un error. ¿Cuál es el que corresponde a {ciudad}?\n\nEn cuanto me lo digas, sale."
+  },
+  {
+    "k": "datos_cp",
+    "txt": "Solo el código postal",
+    "grupo": "Confirmación",
+    "estados": [
+      "por_confirmar",
+      "preparacion"
+    ],
+    "cuando": "Cuando solo falla el código postal y el resto está bien.",
+    "texto": "Una cosa antes de despacharlo, {nombre}:\n\nEl código postal que nos diste es *{cp}*, y ese número no corresponde a {ciudad}. ¿Me confirmas el correcto?\n\nEn cuanto me lo digas, sale."
+  },
+  {
+    "k": "datos_apellido",
+    "txt": "Solo el apellido",
+    "grupo": "Confirmación",
+    "estados": [
+      "por_confirmar",
+      "preparacion"
+    ],
+    "cuando": "Cuando el cliente puso solo el nombre. La etiqueta lo necesita.",
+    "texto": "Una cosa antes de despacharlo, {nombre}:\n\nMe falta tu *apellido* para completar la etiqueta del envío. ¿Me lo pasas?\n\nEn cuanto me lo digas, sale."
+  },
+  {
     "k": "confirmado",
-    "txt": "Confirmado · plazo",
+    "txt": "Si te responde OK",
     "grupo": "Envío",
-    "cuando": "Justo después de que confirme. Da un rango amplio: mejor que llegue antes de lo dicho.",
+    "cuando": "Cuando contesta confirmando. Cierra el trato y da las gracias.",
     "estados": [
       "preparacion"
     ],
-    "texto": "¡Genial, {nombre}! Muchas gracias por confirmar 🙌\n\nYa te lo preparamos. Suele llegar en 2-7 días laborables según la zona, y la empresa de transporte te llamará antes para concretar el horario contigo; si te viene mejor otro momento, se lo dices sin problema 😊\n\nCualquier cosa me dices, ¿vale?"
+    "texto": "¡Muchas gracias, {nombre}! 🙌\n\nYa me queda todo anotado y te preparamos el pedido hoy mismo. Llega en *2-7 días laborables* según la zona.\n\nDos cosas para que no se pierda el viaje:\n\n· Estate atento esos días: si el repartidor no encuentra a nadie, es probable que intente contactarte.\n· Si no vas a estar, déjalo dicho con alguien de casa que pueda recibirlo por ti y tenga preparados los *{precio}* en efectivo.\n\nCualquier cosa me escribes por aquí y te voy contando cómo va 😊"
   },
   {
     "k": "en_camino",
@@ -48,7 +81,7 @@
       "en_camino",
       "preparacion"
     ],
-    "texto": "¡Hola {nombre}! 👋\n\nTu pedido ya está en camino 🚚\n\nLa empresa de transporte te contactará para coordinar la entrega. Cualquier cosa me dices por aquí."
+    "texto": "¡Hola {nombre}! 👋\n\nTu pedido ya está en camino 🚚\n\nEstos días estate atento: si el repartidor no encuentra a nadie, es probable que intente contactarte. Ten a mano el importe, que el pago es al recibir.\n\nCualquier cosa me dices por aquí."
   },
   {
     "k": "en_reparto",
@@ -58,7 +91,7 @@
     "estados": [
       "en_camino"
     ],
-    "texto": "¡Hola {nombre}! 👋\n\nMe confirman que tu pedido sale a reparto hoy. Mantente pendiente del teléfono 📞 por si te llaman antes de subir.\n\nRecuerda tener a mano el importe, que el pago es al recibir."
+    "texto": "¡Hola {nombre}! 👋\n\nMe confirman que tu pedido sale a reparto hoy. Estate pendiente del timbre 🔔 y del teléfono, por si el repartidor necesita localizarte.\n\nRecuerda tener a mano el importe, que el pago es al recibir."
   },
   {
     "k": "nov_no_contesta",

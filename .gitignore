@@ -16,3 +16,4 @@ confirmaciones_pruebas.json
 __pycache__/
 *.pyc
 *.bak-*
+.reentregas_avisadas.json

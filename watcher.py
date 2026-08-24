@@ -46,11 +46,17 @@ def _guardar(vistos: set) -> None:
 
 
 def _git(*args) -> bool:
-    """Un comando de git en esta carpeta. False si falla, sin reventar nada."""
+    """Un comando de git en esta carpeta. False si falla, sin reventar nada.
+
+    CREATE_NO_WINDOW es obligatorio: sin eso Windows abre una consola negra
+    cada vez que se llama a git.exe, y como esto corre cada pocos minutos, a
+    Carlos le parpadeaban terminales en la pantalla todo el rato.
+    """
     import subprocess
+    sin_ventana = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     try:
         r = subprocess.run(("git",) + args, cwd=BASE, capture_output=True,
-                           text=True, timeout=45)
+                           text=True, timeout=45, creationflags=sin_ventana)
         return r.returncode == 0
     except Exception as e:
         print(f"  git {' '.join(args)}: {e}")
@@ -204,16 +210,31 @@ def main():
     sincronizar = "--sin-sync" not in args
     print(f"Vigilando Shopify cada {INTERVALO}s"
           f"{' (estado compartido con la nube)' if sincronizar else ''}. Ctrl+C para parar.")
+    vueltas = 0
     while True:
+        vueltas += 1
         try:
             lock.write_text(str(int(time.time())), encoding="utf-8")  # heartbeat
-            if sincronizar:
+            # Sincronizar cada vuelta seria hablar con GitHub cada minuto para
+            # nada: el watcher de la nube pasa cada 15-30 min. Cada 5 vueltas
+            # (~5 min) va sobrado para no repetir ningun aviso.
+            if sincronizar and vueltas % 5 == 1:
                 bajar_estado()
             n = revisar()
             if n:
                 print(f"  {n} pedidos nuevos avisados")
                 if sincronizar:
                     subir_estado()
+
+            # Reentregas: la víspera, y las que se pasaron de fecha. El propio
+            # script se guarda a quién ya avisó hoy, así que mirarlo cada media
+            # hora no genera mensajes repetidos.
+            if vueltas % 30 == 1:
+                try:
+                    import recordatorio_entregas
+                    recordatorio_entregas.main()
+                except Exception as e:
+                    print(f"  reentregas: {e}")
         except Exception as e:
             print("error en revision:", e)
         time.sleep(INTERVALO)
